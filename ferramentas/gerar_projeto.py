@@ -228,7 +228,7 @@ def tiro_do_jogador():
     return [se(igual("recarga", 0), [
         ev("EVENT_LAUNCH_PROJECTILE", spriteSheetId=ID("sprite-tiro"), spriteStateId="", actorId="player",
            x=0, y=0, directionType="actor", otherActorId="player", direction="up", angle=0,
-           speed=3, animSpeed=15, lifeTime=0.8, initialOffset=8, loopAnim=True, destroyOnHit=True,
+           speed=3, animSpeed=15, lifeTime=0.8, initialOffset=14, loopAnim=True, destroyOnHit=True,
            collisionGroup="2", collisionMask=["1"]),
         somar("tiros"),
         ev("EVENT_SET_VALUE", variable=VAR["recarga"], value=var("cadencia")),
@@ -280,11 +280,12 @@ def ia_inimigo(k):
     onde = ev("EVENT_ACTOR_GET_POSITION", actorId="$self$", vectorX=VAR[ex], vectorY=VAR[ey], units="pixels")
     perto = op("and", op("lt", {"type": "abs", "value": op("sub", var(px), var(ex))}, num(12)),
                op("lt", {"type": "abs", "value": op("sub", var(py), var(ey))}, num(12)))
-    recuar = [  # ponto espelhado: 2x a distância para o lado oposto ao jogador
-        setar(px, op("sub", op("mul", var(ex), num(2)), var(px))),
-        setar(py, op("sub", op("mul", var(ey), num(2)), var(py))),
-        passo(ex, px, 16), passo(ey, py, 16),
-        ev("EVENT_ACTOR_MOVE_TO", actorId="$self$", x=var(ex), y=var(ey), moveType="diagonal",
+    recuar = [  # 16 px fixos para longe do jogador em cada eixo, respeitando paredes
+        se(op("gte", var(ex), var(px)), [setar(px, op("add", var(ex), num(16)))],
+           [setar(px, op("sub", var(ex), num(16)))]),
+        se(op("gte", var(ey), var(py)), [setar(py, op("add", var(ey), num(16)))],
+           [setar(py, op("sub", var(ey), num(16)))]),
+        ev("EVENT_ACTOR_MOVE_TO", actorId="$self$", x=var(px), y=var(py), moveType="diagonal",
            useCollisions=True, collideWith=["walls"], units="pixels"),
         esperar(20),
     ]
@@ -293,7 +294,7 @@ def ia_inimigo(k):
         se(perto, recuar, [
             passo(ex, px, 8), passo(ey, py, 8),
             ev("EVENT_ACTOR_MOVE_TO", actorId="$self$", x=var(ex), y=var(ey), moveType="diagonal",
-               useCollisions=False, collideWith=[], units="pixels")]),
+               useCollisions=True, collideWith=["walls"], units="pixels")]),
     ]
     mover = lambda dx, dy: ev("EVENT_ACTOR_MOVE_RELATIVE", actorId="$self$", x=num(dx), y=num(dy),
                               moveType="horizontal" if dx else "vertical", useCollisions=True,
