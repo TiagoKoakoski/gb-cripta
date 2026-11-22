@@ -65,3 +65,17 @@ def test_recomeco_zera_build(jogo):
     jogo.tick(90)
     assert (jogo.var("dano"), jogo.var("cadencia"), jogo.var("rapido"), jogo.var("vida"), jogo.var("vida_max"),
             jogo.var("profundidade")) == (1, 5, 0, 3, 3, 1)
+
+
+def test_recomeco_zera_velocidade_das_botas(jogo):
+    boot(jogo, tipo_1=1, tipo_2=0, tipo_3=0, tipo_4=0, vida=1, rapido=1)
+    assert jogo.velocidade_jogador() == 64
+    assert esperar_cena(jogo, CENA_FIM)
+    jogo.tick(60)
+    jogo.pb.button_press("a"); jogo.tick(3); jogo.pb.button_release("a")
+    assert esperar_cena(jogo, CENA_TITULO)
+    jogo.tick(40)
+    jogo.pb.button_press("a"); jogo.tick(3); jogo.pb.button_release("a")
+    jogo.tick(90)
+    assert 1 <= jogo.var("cena") <= 4
+    assert jogo.velocidade_jogador() == 32

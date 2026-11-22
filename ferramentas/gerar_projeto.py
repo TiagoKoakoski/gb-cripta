@@ -413,7 +413,9 @@ def gatilhos_portas():
 
 
 def ajustar_velocidade():
-    return [se(igual("rapido", 1), [ev("EVENT_ACTOR_SET_MOVEMENT_SPEED", actorId="player", speed=2)])]
+    """Sempre define as duas: a velocidade do jogador persiste entre cenas e partidas."""
+    return [se(igual("rapido", 1), [ev("EVENT_ACTOR_SET_MOVEMENT_SPEED", actorId="player", speed=2)],
+               [ev("EVENT_ACTOR_SET_MOVEMENT_SPEED", actorId="player", speed=1)])]
 
 
 def efeito_item():

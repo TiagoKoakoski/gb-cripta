@@ -56,6 +56,10 @@ class Emu:
         y = m[a + 2] | (m[a + 3] << 8)
         return x / 256, y / 256
 
+    def velocidade_jogador(self):
+        """move_speed do actors[0] (32 = normal, 64 = Botas)."""
+        return self.pb.memory[self.endereco("_actors") + 19]
+
     def foto(self, caminho):
         Path(caminho).parent.mkdir(parents=True, exist_ok=True)
         self.pb.screen.image.save(str(caminho))
