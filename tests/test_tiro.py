@@ -57,3 +57,11 @@ def test_sala_vazia_ja_abre(jogo):
     boot(jogo, tipo_1=0, tipo_2=0, tipo_3=0, tipo_4=0)
     assert jogo.var("vivos") == 0
     assert jogo.var("porta_esq") in (1, 2, 3)
+
+
+def test_cadencia_padrao(jogo):
+    boot(jogo, tipo_1=0, tipo_2=0, tipo_3=0, tipo_4=0)
+    virar(jogo, "up")
+    for _ in range(100):
+        atirar(jogo, 1)          # 2 frames por aperto => ~200 frames
+    assert 8 <= jogo.var("tiros") <= 12, jogo.var("tiros")

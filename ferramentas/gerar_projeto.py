@@ -449,9 +449,7 @@ def init_sala_comum(nome):
             ev("EVENT_ACTOR_SHOW", actorId="player")] + atualizar_hud() + \
         [sem_colisao(f"hud_{j}") for j in range(1, PARES_HUD + 1)] + ajustar_velocidade() + \
         [esconder(f"icone_{l}") for l in ("esq", "dir")] + [sem_colisao(f"icone_{l}") for l in ("esq", "dir")] + \
-        [ev("EVENT_SET_INPUT_SCRIPT", children={"true": tiro_do_jogador()}, input=["a"], override=True),
-         ev("EVENT_SET_TIMER_SCRIPT", children={"script": relogio_recarga()}, timer=1, duration=4 / 60, frames=4,
-            units="frames")]
+        [ev("EVENT_SET_INPUT_SCRIPT", children={"true": tiro_do_jogador()}, input=["a"], override=True)]
 
 
 def init_tesouro():
@@ -552,7 +550,9 @@ def cena(nome, fundo, script, atores=(), gats=(), colisao=None, tipo="TOPDOWN", 
 def atores_hud(i0):
     out = []
     for j in range(1, PARES_HUD + 1):
-        out.append(ator(f"hud_{j}", "hud_0", 7 + 2 * (j - 1), 0, i0)); i0 += 1
+        # o 1º par do HUD carrega o relógio de 4 frames (timer de cena do motor só roda a cada 16)
+        relogio = relogio_recarga() + [esperar(4)] if j == 1 else None
+        out.append(ator(f"hud_{j}", "hud_0", 7 + 2 * (j - 1), 0, i0, update=relogio)); i0 += 1
     return out, i0
 
 

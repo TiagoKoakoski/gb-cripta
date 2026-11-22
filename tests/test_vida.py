@@ -65,3 +65,12 @@ def test_hud_coracoes(jogo, tmp_path):
     assert r[2] == r[3] == r[4]               # 3º, 4º e 5º vazios
     assert r[0] != r[2]                       # cheio != vazio
     assert r[5] != r[4]                       # 6º: nada (só o muro)
+
+
+def test_invencibilidade_dura_cerca_de_1s(jogo):
+    boot(jogo, tipo_1=1, tipo_2=0, tipo_3=0, tipo_4=0, vida=6, vida_max=6)
+    assert esperar(jogo, lambda: jogo.var("vida") < 6, 600)
+    n = 0
+    while jogo.var("invencivel") != 0 and n < 400:
+        jogo.tick(1); n += 1
+    assert 45 <= n <= 90, n
