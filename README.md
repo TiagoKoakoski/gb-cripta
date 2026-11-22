@@ -35,7 +35,7 @@ V=~/Projetos/jogos/_ferramentas/venv/bin
 $V/python ferramentas/gerar_projeto.py    # arte/ + projeto/ (GB Studio), tudo gerado por código
 ./ferramentas/compilar.sh rom             # build/cripta.gb
 ./ferramentas/compilar.sh web             # build/web/
-$V/pytest tests -q                        # 46 testes rodando a ROM no emulador PyBoy
+$V/pytest tests -q                        # 54 testes rodando a ROM no emulador PyBoy
 $V/python ferramentas/jogar_sozinho.py    # bot joga do título até morrer e fotografa em build/fotos/
 ```
 
