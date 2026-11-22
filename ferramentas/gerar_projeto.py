@@ -280,14 +280,18 @@ def ia_inimigo(k):
     onde = ev("EVENT_ACTOR_GET_POSITION", actorId="$self$", vectorX=VAR[ex], vectorY=VAR[ey], units="pixels")
     perto = op("and", op("lt", {"type": "abs", "value": op("sub", var(px), var(ex))}, num(12)),
                op("lt", {"type": "abs", "value": op("sub", var(py), var(ey))}, num(12)))
-    recuar = [  # 16 px fixos para longe do jogador em cada eixo, respeitando paredes
-        se(op("gte", var(ex), var(px)), [setar(px, op("add", var(ex), num(16)))],
-           [setar(px, op("sub", var(ex), num(16)))]),
-        se(op("gte", var(ey), var(py)), [setar(py, op("add", var(ey), num(16)))],
-           [setar(py, op("sub", var(ey), num(16)))]),
+    def fugir(e, p, centro):
+        """RECUO px para longe do jogador; alinhado com ele, foge para o centro da sala."""
+        return se(op("gt", var(e), var(p)), [setar(p, op("add", var(e), num(RECUO)))], [
+            se(op("lt", var(e), var(p)), [setar(p, op("sub", var(e), num(RECUO)))], [
+                se(op("lt", var(e), num(centro)), [setar(p, op("add", var(e), num(RECUO)))],
+                   [setar(p, op("sub", var(e), num(RECUO)))])])])
+    recuar = [
+        fugir(ex, px, 80), fugir(ey, py, 72),
         ev("EVENT_ACTOR_MOVE_TO", actorId="$self$", x=var(px), y=var(py), moveType="diagonal",
            useCollisions=True, collideWith=["walls"], units="pixels"),
-        esperar(20),
+        ev("EVENT_ACTOR_GET_POSITION", actorId="$self$", vectorX=VAR[ex], vectorY=VAR[ey], units="pixels"),
+        esperar(30),
     ]
     perseguir = [
         ev("EVENT_ACTOR_GET_POSITION", actorId="player", vectorX=VAR[px], vectorY=VAR[py], units="pixels"),
@@ -367,6 +371,7 @@ def atualizar_hud():
     return acoes
 
 
+RECUO = 24  # px que o morcego recua depois de mergulhar
 INVENCIVEL_TICKS = 15  # x4 frames = ~1 s
 
 

@@ -67,13 +67,13 @@ def test_layouts_limpam_e_abrem(jogo, sala):
 
 
 def test_morcego_nao_gruda(jogo):
-    """Morcego encostado recua: o jogador parado consegue acertá-lo atirando pra baixo/cima."""
+    """Morcego mergulha e recua: com o jogador parado, ele se afasta (>2 tiles) por boa parte do tempo."""
     boot(jogo, tipo_1=1, tipo_2=0, tipo_3=0, tipo_4=0, vida=99, vida_max=6)
     jogo.tick(200)
-    grudado = 0
+    longe = 0
     for _ in range(300):
         jogo.tick(1)
         px, py = jogo.pos_jogador()
-        if abs(jogo.var("ex_1") / 8 - px) < 1 and abs(jogo.var("ey_1") / 8 - py) < 1:
-            grudado += 1
-    assert grudado < 100   # não pode passar a maior parte do tempo em cima do jogador
+        if abs(jogo.var("ex_1") / 8 - px) + abs(jogo.var("ey_1") / 8 - py) > 2:
+            longe += 1
+    assert longe >= 60   # grudado de vez daria 0

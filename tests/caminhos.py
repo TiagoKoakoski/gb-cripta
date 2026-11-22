@@ -80,6 +80,8 @@ def limpar_sala(jogo, limite=900):
         if jogo.var("cena") != cena0:
             return False
         vivo = next((k for k in (1, 2, 3, 4) if jogo.var(f"tipo_{k}") != 0), None)
+        if vivo and i % 80 == 79:
+            aproximar(jogo, vivo)
         if vivo:
             mirar(jogo, vivo, secundario=bool(i % 2))
         atirar(jogo, 1)
@@ -118,6 +120,21 @@ def andar_ate(jogo, destino):
             return
         ir_eixo(jogo, 0, float(x))
         ir_eixo(jogo, 1, float(y))
+
+
+def aproximar(jogo, k, passos=4):
+    """Anda alguns passos pelo caminho livre em direção ao inimigo k (contorna obstáculos)."""
+    alvo = (max(1, min(17, round(jogo.var(f"ex_{k}") / 8))), max(2, min(16, round(jogo.var(f"ey_{k}") / 8))))
+    try:
+        rota = caminho(jogo, alvo)
+    except AssertionError:
+        return
+    for (x, y) in rota[1:1 + passos]:
+        try:
+            ir_eixo(jogo, 0, float(x), limite=40)
+            ir_eixo(jogo, 1, float(y), limite=40)
+        except AssertionError:
+            return
 
 
 def ir_porta(jogo, lado, limite=900):
