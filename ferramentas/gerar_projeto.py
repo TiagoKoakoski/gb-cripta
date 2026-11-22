@@ -36,7 +36,7 @@ PORTA_SPRITE = {1: "porta_combate", 2: "porta_tesouro", 3: "porta_fonte"}
 
 VARIAVEIS = (["vida", "vida_max", "dano", "cadencia", "rapido", "profundidade", "vivos", "porta_esq",
               "porta_dir", "recarga", "invencivel", "recorde", "venceu", "item_sala", "fonte_usada",
-              "ir_para", "tiros", "sorte", "cena", "fio_pisca"] +
+              "ir_para", "tiros", "sorte", "cena", "fio_pisca", "semente", "qtd", "sala_sorteada"] +
              [f"tipo_{k}" for k in SLOTS] + [f"hp_{k}" for k in SLOTS] +
              [f"{p}{e}_{k}" for k in SLOTS for p in ("e", "p") for e in ("x", "y")])
 VAR = {n: str(i) for i, n in enumerate(VARIAVEIS)}
@@ -197,8 +197,7 @@ def gatilho(nome, x, y, w, h, idx, script):
 def iniciar_partida():
     return [setar("vida", 3), setar("vida_max", 3), setar("dano", 1), setar("cadencia", 5), setar("rapido", 0),
             setar("profundidade", 1), setar("venceu", 0), setar("recarga", 0), setar("invencivel", 0),
-            setar("tiros", 0), setar("ir_para", 0)] + [setar(f"tipo_{k}", 0) for k in SLOTS] + \
-        [setar("tipo_1", 1), setar("tipo_2", 2)]
+            setar("tiros", 0), setar("ir_para", 0), setar("semente", 0)] + [setar(f"tipo_{k}", 0) for k in SLOTS]
 
 
 def tiro_do_jogador():
@@ -214,7 +213,13 @@ def tiro_do_jogador():
 
 
 def relogio_recarga():
-    return [se(op("gt", var("recarga"), num(0)), [tirar("recarga")])]
+    """A cada 4 frames: recarga do tiro e invencibilidade piscando o herói."""
+    return [se(op("gt", var("recarga"), num(0)), [tirar("recarga")]),
+            se(op("gt", var("invencivel"), num(0)), [
+                se(op("lt", var("invencivel"), num(255)), [tirar("invencivel")]),
+                se(op("eq", op("mod", var("invencivel"), num(2)), num(1)),
+                   [ev("EVENT_ACTOR_HIDE", actorId="player")], [ev("EVENT_ACTOR_SHOW", actorId="player")]),
+            ])]
 
 
 def abrir_portas():
@@ -245,17 +250,73 @@ def acerto_no_inimigo(k):
 
 
 def ia_inimigo(k):
-    """update do slot k: comportamento conforme tipo_k."""
+    """update do slot k: comportamento conforme tipo_k. Sempre publica a posição em ex_k/ey_k."""
     ex, ey, px, py = f"ex_{k}", f"ey_{k}", f"px_{k}", f"py_{k}"
     passo = lambda e, p, d: setar(e, op("add", var(e), op("max", num(-d), op("min", num(d), op("sub", var(p), var(e))))))
-    perseguir = [
-        ev("EVENT_ACTOR_GET_POSITION", actorId="$self$", vectorX=VAR[ex], vectorY=VAR[ey], units="pixels"),
-        ev("EVENT_ACTOR_GET_POSITION", actorId="player", vectorX=VAR[px], vectorY=VAR[py], units="pixels"),
-        passo(ex, px, 8), passo(ey, py, 8),
+    onde = ev("EVENT_ACTOR_GET_POSITION", actorId="$self$", vectorX=VAR[ex], vectorY=VAR[ey], units="pixels")
+    perto = op("and", op("lt", {"type": "abs", "value": op("sub", var(px), var(ex))}, num(12)),
+               op("lt", {"type": "abs", "value": op("sub", var(py), var(ey))}, num(12)))
+    recuar = [  # ponto espelhado: 2x a distância para o lado oposto ao jogador
+        setar(px, op("sub", op("mul", var(ex), num(2)), var(px))),
+        setar(py, op("sub", op("mul", var(ey), num(2)), var(py))),
+        passo(ex, px, 16), passo(ey, py, 16),
         ev("EVENT_ACTOR_MOVE_TO", actorId="$self$", x=var(ex), y=var(ey), moveType="diagonal",
-           useCollisions=False, collideWith=[], units="pixels"),
+           useCollisions=True, collideWith=["walls"], units="pixels"),
+        esperar(20),
     ]
-    return [se(igual(f"tipo_{k}", 1), perseguir, [esperar(10)])]
+    perseguir = [
+        ev("EVENT_ACTOR_GET_POSITION", actorId="player", vectorX=VAR[px], vectorY=VAR[py], units="pixels"),
+        se(perto, recuar, [
+            passo(ex, px, 8), passo(ey, py, 8),
+            ev("EVENT_ACTOR_MOVE_TO", actorId="$self$", x=var(ex), y=var(ey), moveType="diagonal",
+               useCollisions=False, collideWith=[], units="pixels")]),
+    ]
+    mover = lambda dx, dy: ev("EVENT_ACTOR_MOVE_RELATIVE", actorId="$self$", x=num(dx), y=num(dy),
+                              moveType="horizontal" if dx else "vertical", useCollisions=True,
+                              collideWith=["walls", "actors"], units="pixels")
+    vagar = [setar(px, sorteio(4)),
+             se(igual(px, 0), [mover(16, 0)]), se(igual(px, 1), [mover(-16, 0)]),
+             se(igual(px, 2), [mover(0, 16)]), se(igual(px, 3), [mover(0, -16)]),
+             esperar(40)]
+    atirar = [esperar(60), setar(px, sorteio(60)), ev("EVENT_WAIT", time=num(0.5), frames=var(px), units="frames"),
+              se(op("ne", var(f"tipo_{k}"), num(0)), [
+                  ev("EVENT_LAUNCH_PROJECTILE", spriteSheetId=ID("sprite-tiro_inimigo"), spriteStateId="",
+                     actorId="$self$", x=0, y=0, directionType="target", targetActorId="player",
+                     otherActorId="$self$", direction="down", angle=0, speed=1, animSpeed=15, lifeTime=2,
+                     initialOffset=8, loopAnim=True, destroyOnHit=True, collisionGroup="3",
+                     collisionMask=["player"]),
+                  som("beep", pitch=2, duration=0.08)])]
+    return [onde, se(igual(f"tipo_{k}", 1), perseguir, [
+        se(igual(f"tipo_{k}", 2), vagar, [se(igual(f"tipo_{k}", 3), atirar, [esperar(10)])])])]
+
+
+def sortear_inimigos():
+    """Quantidade e tipos pela profundidade. raso (1-2): 1-2 inimigos, morcego/slime;
+    meio (3-4): 2-3, qualquer; fundo (5+): 3-4, qualquer."""
+    acoes = [setar("qtd", op("add", num(1), sorteio(2))),
+             se(op("gte", var("profundidade"), num(3)), [setar("qtd", op("add", num(2), sorteio(2)))]),
+             se(op("gte", var("profundidade"), num(5)), [setar("qtd", op("add", num(3), sorteio(2)))])]
+    for k in SLOTS:
+        acoes.append(se(op("gte", var("qtd"), num(k)), [
+            se(op("gte", var("profundidade"), num(3)),
+               [setar(f"tipo_{k}", op("add", num(1), sorteio(3)))],
+               [setar(f"tipo_{k}", op("add", num(1), sorteio(2)))]),
+        ], [setar(f"tipo_{k}", 0)]))
+    return acoes
+
+
+def ir_combate_sorteado():
+    acoes = [setar("sala_sorteada", op("add", num(1), sorteio(4)))]
+    for n in (1, 2, 3, 4):
+        acoes.append(se(igual("sala_sorteada", n), [ir_cena(f"sala_{n}")]))
+    return acoes
+
+
+def embaralhar():
+    """Semeia pelo relógio e avança 'semente' passos (testes usam pra variar o sorteio)."""
+    return [ev("EVENT_RNG_SEED"),
+            ev("EVENT_LOOP_WHILE", children={"true": [tirar("semente"), setar("sorte", sorteio(7))]},
+               condition=op("gt", var("semente"), num(0)))]
 
 
 def preparar_slot(k):
@@ -281,22 +342,18 @@ def atualizar_hud():
     return acoes
 
 
-def piscar_jogador():
-    pisca = []
-    for _ in range(6):
-        pisca += [ev("EVENT_ACTOR_HIDE", actorId="player"), esperar(5), ev("EVENT_ACTOR_SHOW", actorId="player"),
-                  esperar(5)]
-    return pisca + [setar("invencivel", 0)]
+INVENCIVEL_TICKS = 15  # x4 frames = ~1 s
 
 
 def jogador_levou_dano():
+    """invencivel conta para baixo no relógio de 4 frames (sem threads: thread disparada dentro do
+    script de colisão corrompia o estado do motor)."""
     return [se(igual("invencivel", 0), [
-        setar("invencivel", 1),
+        setar("invencivel", INVENCIVEL_TICKS),
         tirar("vida"),
         som("crash", pitch=2, duration=0.2),
     ] + atualizar_hud() + [
-        se(op("lte", var("vida"), num(0)), [setar("invencivel", 1), esperar(30), ir_cena("fim")],
-           [ev("EVENT_THREAD_START", children={"true": piscar_jogador()}, variable=VAR["fio_pisca"])]),
+        se(op("lte", var("vida"), num(0)), [setar("invencivel", 255), esperar(30), ir_cena("fim")]),
     ])]
 
 
@@ -317,7 +374,7 @@ def init_fim():
 
 
 def init_boot():
-    cadeia = [ir_cena("sala_1")]
+    cadeia = embaralhar() + sortear_inimigos() + ir_combate_sorteado()
     for n in sorted(IR_PARA, reverse=True):
         cadeia = [se(igual("ir_para", n), [ir_cena(IR_PARA[n])], cadeia)]
     return [setar("cena", 0)] + iniciar_partida() + [esperar(20)] + cadeia
