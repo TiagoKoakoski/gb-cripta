@@ -68,3 +68,17 @@ def limpar_sala(jogo, limite=900):
             mirar(jogo, vivo, secundario=bool(i % 2))
         atirar(jogo, 1)
     return jogo.var("vivos") == 0
+
+
+def ir_porta(jogo, lado, limite=900):
+    """Anda até o vão da porta (esq: colunas 2-3, dir: 16-17) e entra; volta quando a cena muda.
+    Corredor na fileira 4: na 3 o corpo do herói já encosta na porta."""
+    cena0 = jogo.var("cena")
+    ir_eixo(jogo, 1, 4.0)
+    ir_eixo(jogo, 0, 2.0 if lado == "esq" else 16.0)
+    for _ in range(limite):
+        if jogo.var("cena") != cena0:
+            jogo.tick(60)
+            return
+        jogo.pb.button_press("up"); jogo.tick(1); jogo.pb.button_release("up")
+    raise AssertionError(f"não entrou na porta {lado}: {jogo.pos_jogador()}")

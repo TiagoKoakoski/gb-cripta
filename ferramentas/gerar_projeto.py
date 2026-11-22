@@ -106,8 +106,11 @@ def esperar(frames):
     return ev("EVENT_WAIT", time=num(frames / 60), frames=num(frames), units="frames")
 
 
+CENA_ATUAL = [""]  # cena sendo montada: IDs e símbolos de atores/gatilhos são únicos por cena
+
+
 def a(nome):
-    return ID(f"ator-{nome}")
+    return ID(f"ator-{CENA_ATUAL[0]}-{nome}")
 
 
 def esconder(nome):
@@ -176,7 +179,8 @@ def colisoes_str(col):
 
 def ator(nome, sprite, x, y, idx, grupo="", script=None, start=None, update=None, hit2=None, animar=False):
     return {
-        "_resourceType": "actor", "id": a(nome), "_index": idx, "symbol": f"actor_{nome}", "prefabId": "",
+        "_resourceType": "actor", "id": a(nome), "_index": idx, "symbol": f"actor_{CENA_ATUAL[0]}_{nome}",
+        "prefabId": "",
         "name": nome, "coordinateType": "tiles", "x": x, "y": y + 1, "frame": 0, "animate": animar,
         "spriteSheetId": ID(f"sprite-{sprite}"), "paletteId": "", "direction": "down", "moveSpeed": 1,
         "animSpeed": 15, "isPinned": False, "persistent": False, "collisionGroup": grupo,
@@ -187,7 +191,8 @@ def ator(nome, sprite, x, y, idx, grupo="", script=None, start=None, update=None
 
 
 def gatilho(nome, x, y, w, h, idx, script):
-    return {"_resourceType": "trigger", "id": ID(f"gat-{nome}"), "_index": idx, "symbol": f"trigger_{nome}",
+    return {"_resourceType": "trigger", "id": ID(f"gat-{CENA_ATUAL[0]}-{nome}"), "_index": idx,
+            "symbol": f"trigger_{CENA_ATUAL[0]}_{nome}",
             "prefabId": "", "name": nome, "x": x, "y": y, "width": w, "height": h,
             "prefabScriptOverrides": {}, "script": script, "leaveScript": []}
 
@@ -358,14 +363,86 @@ def jogador_levou_dano():
 
 
 def init_sala_combate(nome):
-    return [setar("cena", CENA_NUM[nome]), setar("vivos", 0), setar("recarga", 0), setar("invencivel", 0)] + \
-        atualizar_hud() + [sem_colisao(f"hud_{j}") for j in range(1, PARES_HUD + 1)] + \
-        [x for k in SLOTS for x in preparar_slot(k)] + \
+    return init_sala_comum(nome) + [setar("vivos", 0)] + [x for k in SLOTS for x in preparar_slot(k)] + \
+        [se(igual("vivos", 0), abrir_portas())]
+
+
+ITENS = {1: "item_forte", 2: "item_gatilho", 3: "item_coracao", 4: "item_botas"}
+SALAS_ATE_CHEFE = 7
+
+
+def entrar_porta(lado):
+    """Profundidade +1; na 8ª vai pro chefe; senão vai ao tipo mostrado na porta."""
+    nome = f"porta_{lado}"
+    return [se(igual("vivos", 0), [
+        somar("profundidade"),
+        se(op("gt", var("profundidade"), num(SALAS_ATE_CHEFE)), [ir_cena("sala_chefe")], [
+            se(igual(nome, 2), [ir_cena("sala_tesouro")], [
+                se(igual(nome, 3), [ir_cena("sala_fonte")], sortear_inimigos() + ir_combate_sorteado())])]),
+    ])]
+
+
+def gatilhos_portas():
+    return [gatilho(f"entrar_{lado}", x, y, 2, 2, i, entrar_porta(lado))
+            for i, (lado, (x, y)) in enumerate(zip(("esq", "dir"), A.PORTAS))]
+
+
+def ajustar_velocidade():
+    return [se(igual("rapido", 1), [ev("EVENT_ACTOR_SET_MOVEMENT_SPEED", actorId="player", speed=2)])]
+
+
+def efeito_item():
+    return [
+        se(igual("item_sala", 1), [ev("EVENT_SET_VALUE", variable=VAR["dano"], value=op("add", var("dano"), num(1)))]),
+        se(igual("item_sala", 2), [ev("EVENT_SET_VALUE", variable=VAR["cadencia"],
+                                      value=op("max", num(1), op("sub", var("cadencia"), num(2))))]),
+        se(igual("item_sala", 3), [
+            ev("EVENT_SET_VALUE", variable=VAR["vida_max"], value=op("min", num(6), op("add", var("vida_max"), num(1)))),
+            ev("EVENT_SET_VALUE", variable=VAR["vida"], value=op("min", var("vida_max"), op("add", var("vida"), num(1))))]),
+        se(igual("item_sala", 4), [setar("rapido", 1)] + ajustar_velocidade()),
+    ]
+
+
+def pegar_item():
+    return [se(op("ne", var("item_sala"), num(0)),
+               efeito_item() + [setar("item_sala", 0), esconder("objeto"), som("tone", frequency=900, duration=0.3)]
+               + atualizar_hud())]
+
+
+def usar_fonte():
+    return [se(igual("fonte_usada", 0), [
+        setar("fonte_usada", 1),
+        ev("EVENT_SET_VALUE", variable=VAR["vida"], value=op("min", var("vida_max"), op("add", var("vida"), num(2)))),
+        som("tone", frequency=500, duration=0.4),
+        ev("EVENT_ACTOR_SET_FRAME", actorId=a("objeto"), frame=num(0)),
+    ] + atualizar_hud())]
+
+
+def init_sala_comum(nome):
+    """Partes comuns de toda sala jogável: número da cena, HUD, tiro, relógio, velocidade."""
+    return [setar("cena", CENA_NUM[nome]), setar("recarga", 0), setar("invencivel", 0),
+            ev("EVENT_ACTOR_SHOW", actorId="player")] + atualizar_hud() + \
+        [sem_colisao(f"hud_{j}") for j in range(1, PARES_HUD + 1)] + ajustar_velocidade() + \
         [esconder(f"icone_{l}") for l in ("esq", "dir")] + [sem_colisao(f"icone_{l}") for l in ("esq", "dir")] + \
         [ev("EVENT_SET_INPUT_SCRIPT", children={"true": tiro_do_jogador()}, input=["a"], override=True),
          ev("EVENT_SET_TIMER_SCRIPT", children={"script": relogio_recarga()}, timer=1, duration=4 / 60, frames=4,
-            units="frames"),
-         se(igual("vivos", 0), abrir_portas())]
+            units="frames")]
+
+
+def init_tesouro():
+    acoes = init_sala_comum("sala_tesouro") + [setar("vivos", 0), setar("item_sala", op("add", num(1), sorteio(4)))]
+    for t, spr in ITENS.items():
+        acoes.append(se(igual("item_sala", t), [trocar_sprite(a("objeto"), spr)]))
+    return acoes + [sem_colisao("objeto")] + abrir_portas()
+
+
+def init_fonte():
+    return init_sala_comum("sala_fonte") + [setar("vivos", 0), setar("fonte_usada", 0), sem_colisao("objeto")] + \
+        abrir_portas()
+
+
+def init_chefe():
+    return init_sala_comum("sala_chefe") + [setar("vivos", 1)]
 
 
 def init_fim():
@@ -408,6 +485,7 @@ def atores_portas(i0):
 
 
 def sala_combate(nome):
+    CENA_ATUAL[0] = nome
     col = json.loads((A.ARTE / f"colisao_{nome}.json").read_text())
     atores, i = [], 0
     for k, (x, y) in zip(SLOTS, POS_SLOTS[nome]):
@@ -415,11 +493,27 @@ def sala_combate(nome):
                            hit2=acerto_no_inimigo(k), animar=True)); i += 1
     portas, i = atores_portas(i)
     hud, i = atores_hud(i)
-    return cena(nome, nome, init_sala_combate(nome), atores + portas + hud, [], col, dano=jogador_levou_dano())
+    return cena(nome, nome, init_sala_combate(nome), atores + portas + hud, gatilhos_portas(), col,
+                dano=jogador_levou_dano())
+
+
+def sala_especial(nome, sprite_objeto, init_fn, tocar_fn):
+    CENA_ATUAL[0] = nome
+    init, ao_tocar = init_fn(), tocar_fn()
+    col = json.loads((A.ARTE / f"colisao_{nome}.json").read_text())
+    portas, i = atores_portas(0)
+    hud, i = atores_hud(i)
+    objeto = ator("objeto", sprite_objeto, 9, 8, i)
+    gats = gatilhos_portas() + [gatilho("tocar_objeto", 8, 7, 4, 4, 2, ao_tocar)]
+    return cena(nome, nome, init, portas + hud + [objeto], gats, col, dano=jogador_levou_dano())
 
 
 def todas_cenas():
-    return [cena("boot", "titulo", init_boot()), cena("fim", "fim", init_fim())] + [sala_combate(n) for n in COMBATE]
+    return [cena("boot", "titulo", init_boot()), cena("fim", "fim", init_fim())] + \
+        [sala_combate(n) for n in COMBATE] + [
+            sala_especial("sala_tesouro", "item_forte", init_tesouro, pegar_item),
+            sala_especial("sala_fonte", "fonte", init_fonte, usar_fonte),
+            sala_especial("sala_chefe", "rei", init_chefe, lambda: [])]
 
 
 SPRITES = [("jogador", 8, "multi_movement"), ("tiro", 1, "fixed"), ("tiro_inimigo", 1, "fixed"),
