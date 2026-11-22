@@ -15,7 +15,7 @@ CORES_SPRITE = ["#65FF00", "#E0F8CF", "#86C06C", "#071821"]
 COR_SPRITE = {".": CORES_SPRITE[0], "w": CORES_SPRITE[1], "g": CORES_SPRITE[2], "k": CORES_SPRITE[3]}
 COR_FUNDO = {str(i): c for i, c in enumerate(CORES_FUNDO)}
 LARG, ALT = 20, 18
-PORTAS = [(4, 1), (14, 1)]
+PORTAS = [(2, 1), (16, 1)]
 NASCIMENTO = (9, 16)  # pé do jogador ao entrar na sala
 
 
@@ -225,6 +225,24 @@ for _f in (CORACAO_CHEIO, CORACAO_VAZIO):
 CORACAO_VAZIO[6] = "..k.........k..."[:16]
 CORACAO_VAZIO[5] = "..k.........k..."
 
+# corações pequenos 7x7 para o HUD (dois por sprite 16x16)
+MINI_CHEIO = [".kk.kk.", "kwgkggk", "kgggggk", "kgggggk", ".kgggk.", "..kgk..", "...k..."]
+MINI_VAZIO = [".kk.kk.", "k..k..k", "k.....k", "k.....k", ".k...k.", "..k.k..", "...k..."]
+MINI_NADA = ["......."] * 7
+
+
+def par_coracoes(esq, dir_):
+    f = ["." * 16 for _ in range(16)]
+    for y in range(7):
+        f[4 + y] = "." + esq[y] + "." + dir_[y]
+    return [(l + "." * 16)[:16] for l in f]
+
+
+HUD_ESTADOS = {  # estado -> (esq, dir)
+    0: (MINI_CHEIO, MINI_CHEIO), 1: (MINI_CHEIO, MINI_VAZIO), 2: (MINI_VAZIO, MINI_VAZIO),
+    3: (MINI_CHEIO, MINI_NADA), 4: (MINI_VAZIO, MINI_NADA),
+}
+
 # ------------------------------------------------------------------ fonte 5x7 (texto das telas e dígitos)
 FONTE5 = {
     "A": [".kkk.", "k...k", "k...k", "kkkkk", "k...k", "k...k", "k...k"],
@@ -381,6 +399,8 @@ def main():
     for n, fs in dois.items():
         folha(list(fs)).save(ARTE / f"{n}.png")
     folha([digito16(d) for d in range(10)]).save(ARTE / "digitos.png")
+    for e, (l, r) in HUD_ESTADOS.items():
+        folha([par_coracoes(l, r)]).save(ARTE / f"hud_{e}.png")
 
     nomes = ["jogador", "morcego", "slime", "esqueleto", "rei", "coracao", "digitos"] + list(um)
     ims = [Image.open(ARTE / f"{n}.png") for n in nomes]

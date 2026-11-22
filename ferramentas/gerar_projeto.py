@@ -29,11 +29,14 @@ POS_SLOTS = {
 TIPOS = {1: "morcego", 2: "slime", 3: "esqueleto"}
 VIDA_TIPO = {1: 1, 2: 2, 3: 3}
 IR_PARA = {1: "sala_1", 2: "sala_2", 3: "sala_3", 4: "sala_4", 5: "sala_tesouro", 6: "sala_fonte", 7: "sala_chefe"}
+CENA_NUM = {"boot": 0, "sala_1": 1, "sala_2": 2, "sala_3": 3, "sala_4": 4, "sala_tesouro": 5,
+            "sala_fonte": 6, "sala_chefe": 7, "fim": 8, "vitoria": 9, "titulo": 10}
+PARES_HUD = 3  # cada ator mostra 2 corações (limite de 10 sprites por linha do Game Boy)
 PORTA_SPRITE = {1: "porta_combate", 2: "porta_tesouro", 3: "porta_fonte"}
 
 VARIAVEIS = (["vida", "vida_max", "dano", "cadencia", "rapido", "profundidade", "vivos", "porta_esq",
               "porta_dir", "recarga", "invencivel", "recorde", "venceu", "item_sala", "fonte_usada",
-              "ir_para", "tiros", "sorte"] +
+              "ir_para", "tiros", "sorte", "cena", "fio_pisca"] +
              [f"tipo_{k}" for k in SLOTS] + [f"hp_{k}" for k in SLOTS] +
              [f"{p}{e}_{k}" for k in SLOTS for p in ("e", "p") for e in ("x", "y")])
 VAR = {n: str(i) for i, n in enumerate(VARIAVEIS)}
@@ -262,8 +265,44 @@ def preparar_slot(k):
     return acoes
 
 
+def atualizar_hud():
+    """Par j mostra corações 2j-1 e 2j. Estados: 0 cheio+cheio, 1 cheio+vazio, 2 vazio+vazio,
+    3 cheio+nada, 4 vazio+nada; some se vida_max < 2j-1."""
+    acoes = []
+    for j in range(1, PARES_HUD + 1):
+        p, s2 = 2 * j - 1, 2 * j
+        nome = f"hud_{j}"
+        spr = lambda e: trocar_sprite(a(nome), f"hud_{e}")
+        dois = [se(op("gte", var("vida"), num(s2)), [spr(0)],
+                   [se(op("gte", var("vida"), num(p)), [spr(1)], [spr(2)])])]
+        um = [se(op("gte", var("vida"), num(p)), [spr(3)], [spr(4)])]
+        acoes.append(se(op("gte", var("vida_max"), num(p)), [
+            mostrar(nome), se(op("gte", var("vida_max"), num(s2)), dois, um)], [esconder(nome)]))
+    return acoes
+
+
+def piscar_jogador():
+    pisca = []
+    for _ in range(6):
+        pisca += [ev("EVENT_ACTOR_HIDE", actorId="player"), esperar(5), ev("EVENT_ACTOR_SHOW", actorId="player"),
+                  esperar(5)]
+    return pisca + [setar("invencivel", 0)]
+
+
+def jogador_levou_dano():
+    return [se(igual("invencivel", 0), [
+        setar("invencivel", 1),
+        tirar("vida"),
+        som("crash", pitch=2, duration=0.2),
+    ] + atualizar_hud() + [
+        se(op("lte", var("vida"), num(0)), [setar("invencivel", 1), esperar(30), ir_cena("fim")],
+           [ev("EVENT_THREAD_START", children={"true": piscar_jogador()}, variable=VAR["fio_pisca"])]),
+    ])]
+
+
 def init_sala_combate(nome):
-    return [setar("vivos", 0), setar("recarga", 0)] + \
+    return [setar("cena", CENA_NUM[nome]), setar("vivos", 0), setar("recarga", 0), setar("invencivel", 0)] + \
+        atualizar_hud() + [sem_colisao(f"hud_{j}") for j in range(1, PARES_HUD + 1)] + \
         [x for k in SLOTS for x in preparar_slot(k)] + \
         [esconder(f"icone_{l}") for l in ("esq", "dir")] + [sem_colisao(f"icone_{l}") for l in ("esq", "dir")] + \
         [ev("EVENT_SET_INPUT_SCRIPT", children={"true": tiro_do_jogador()}, input=["a"], override=True),
@@ -272,23 +311,35 @@ def init_sala_combate(nome):
          se(igual("vivos", 0), abrir_portas())]
 
 
+def init_fim():
+    return [setar("cena", CENA_NUM["fim"]), esperar(30),
+            ev("EVENT_AWAIT_INPUT", input=["a", "start"]), ir_cena("boot")]
+
+
 def init_boot():
     cadeia = [ir_cena("sala_1")]
     for n in sorted(IR_PARA, reverse=True):
         cadeia = [se(igual("ir_para", n), [ir_cena(IR_PARA[n])], cadeia)]
-    return iniciar_partida() + [esperar(20)] + cadeia
+    return [setar("cena", 0)] + iniciar_partida() + [esperar(20)] + cadeia
 
 
 # ------------------------------------------------------------------ cenas
 
-def cena(nome, fundo, script, atores=(), gats=(), colisao=None, tipo="TOPDOWN"):
+def cena(nome, fundo, script, atores=(), gats=(), colisao=None, tipo="TOPDOWN", dano=None):
     col = colisao if colisao is not None else [[0] * A.LARG for _ in range(A.ALT)]
     return {"_resourceType": "scene", "id": ID(f"cena-{nome}"), "_index": 0, "type": tipo, "name": nome,
             "symbol": f"scene_{nome}", "x": 0, "y": 0, "width": A.LARG, "height": A.ALT,
             "backgroundId": ID(f"bg-{fundo}"), "tilesetId": "", "colorModeOverride": "none",
             "paletteIds": [], "spritePaletteIds": [], "autoFadeSpeed": 1, "script": script,
-            "playerHit1Script": [], "playerHit2Script": [], "playerHit3Script": [],
+            "playerHit1Script": dano or [], "playerHit2Script": [], "playerHit3Script": dano or [],
             "collisions": colisoes_str(col)}, list(atores), list(gats)
+
+
+def atores_hud(i0):
+    out = []
+    for j in range(1, PARES_HUD + 1):
+        out.append(ator(f"hud_{j}", "hud_0", 7 + 2 * (j - 1), 0, i0)); i0 += 1
+    return out, i0
 
 
 def atores_portas(i0):
@@ -306,18 +357,20 @@ def sala_combate(nome):
         atores.append(ator(f"inimigo_{k}", "morcego", x, y, i, grupo="1", update=ia_inimigo(k),
                            hit2=acerto_no_inimigo(k), animar=True)); i += 1
     portas, i = atores_portas(i)
-    return cena(nome, nome, init_sala_combate(nome), atores + portas, [], col)
+    hud, i = atores_hud(i)
+    return cena(nome, nome, init_sala_combate(nome), atores + portas + hud, [], col, dano=jogador_levou_dano())
 
 
 def todas_cenas():
-    return [cena("boot", "titulo", init_boot())] + [sala_combate(n) for n in COMBATE]
+    return [cena("boot", "titulo", init_boot()), cena("fim", "fim", init_fim())] + [sala_combate(n) for n in COMBATE]
 
 
 SPRITES = [("jogador", 8, "multi_movement"), ("tiro", 1, "fixed"), ("tiro_inimigo", 1, "fixed"),
            ("morcego", 2, "fixed"), ("slime", 2, "fixed"), ("esqueleto", 2, "fixed"), ("rei", 2, "fixed"),
            ("coracao", 2, "fixed"), ("digitos", 10, "fixed"), ("porta_combate", 1, "fixed"),
            ("porta_tesouro", 1, "fixed"), ("porta_fonte", 1, "fixed"), ("porta_fechada", 1, "fixed"),
-           ("bau", 1, "fixed"), ("fonte", 1, "fixed"), ("item_forte", 1, "fixed"), ("item_gatilho", 1, "fixed"),
+           ("hud_0", 1, "fixed"), ("hud_1", 1, "fixed"), ("hud_2", 1, "fixed"), ("hud_3", 1, "fixed"),
+           ("hud_4", 1, "fixed"), ("bau", 1, "fixed"), ("fonte", 1, "fixed"), ("item_forte", 1, "fixed"), ("item_gatilho", 1, "fixed"),
            ("item_coracao", 1, "fixed"), ("item_botas", 1, "fixed")]
 FUNDOS = list(A.OBSTACULOS) + ["titulo", "fim", "vitoria"]
 

@@ -11,7 +11,7 @@ TELAS = ["titulo", "fim", "vitoria"]
 SPRITES_1 = ["tiro", "tiro_inimigo", "porta_combate", "porta_tesouro", "porta_fonte", "porta_fechada",
              "bau", "fonte", "item_forte", "item_gatilho", "item_coracao", "item_botas"]
 SPRITES_2 = ["morcego", "slime", "esqueleto", "rei", "coracao"]
-PORTAS = [(4, 1), (14, 1)]   # (coluna, linha) do canto esquerdo de cada vão de 2 tiles
+PORTAS = [(2, 1), (16, 1)]   # (coluna, linha) do canto esquerdo de cada vão de 2 tiles
 ENTRADA = (9, 16)            # onde o jogador nasce (pé), coluna 9-10
 
 
