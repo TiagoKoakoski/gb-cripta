@@ -2251,14 +2251,28 @@
             "command": "EVENT_IF",
             "args": {
               "condition": {
-                "type": "lte",
+                "type": "and",
                 "valueA": {
-                  "type": "variable",
-                  "value": "0"
+                  "type": "lte",
+                  "valueA": {
+                    "type": "variable",
+                    "value": "0"
+                  },
+                  "valueB": {
+                    "type": "number",
+                    "value": 0
+                  }
                 },
                 "valueB": {
-                  "type": "number",
-                  "value": 0
+                  "type": "eq",
+                  "valueA": {
+                    "type": "variable",
+                    "value": "12"
+                  },
+                  "valueB": {
+                    "type": "number",
+                    "value": 0
+                  }
                 }
               },
               "__collapseElse": true,
@@ -3084,14 +3098,28 @@
             "command": "EVENT_IF",
             "args": {
               "condition": {
-                "type": "lte",
+                "type": "and",
                 "valueA": {
-                  "type": "variable",
-                  "value": "0"
+                  "type": "lte",
+                  "valueA": {
+                    "type": "variable",
+                    "value": "0"
+                  },
+                  "valueB": {
+                    "type": "number",
+                    "value": 0
+                  }
                 },
                 "valueB": {
-                  "type": "number",
-                  "value": 0
+                  "type": "eq",
+                  "valueA": {
+                    "type": "variable",
+                    "value": "12"
+                  },
+                  "valueB": {
+                    "type": "number",
+                    "value": 0
+                  }
                 }
               },
               "__collapseElse": true,

@@ -383,7 +383,8 @@ def jogador_levou_dano():
         tirar("vida"),
         som("crash", pitch=2, duration=0.2),
     ] + atualizar_hud() + [
-        se(op("lte", var("vida"), num(0)), [setar("invencivel", 255), esperar(30), ir_cena("fim")]),
+        se(op("and", op("lte", var("vida"), num(0)), igual("venceu", 0)),
+           [setar("invencivel", 255), esperar(30), ir_cena("fim")]),
     ])]
 
 
@@ -399,7 +400,7 @@ SALAS_ATE_CHEFE = 7
 def entrar_porta(lado):
     """Profundidade +1; na 8ª vai pro chefe; senão vai ao tipo mostrado na porta."""
     nome = f"porta_{lado}"
-    return [se(igual("vivos", 0), [
+    return [se(op("and", igual("vivos", 0), op("gt", var("vida"), num(0))), [
         somar("profundidade"),
         se(op("gt", var("profundidade"), num(SALAS_ATE_CHEFE)), [ir_cena("sala_chefe")], [
             se(igual(nome, 2), [ir_cena("sala_tesouro")], [
@@ -487,7 +488,7 @@ def acerto_no_chefe():
     return [ev("EVENT_SET_VALUE", variable=VAR["hp_chefe"], value=op("sub", var("hp_chefe"), var("dano"))),
             som("crash", pitch=5, duration=0.05),
             se(op("lte", var("hp_chefe"), num(0)), [
-                setar("tipo_1", 0), setar("vivos", 0), setar("venceu", 1),
+                setar("invencivel", 255), setar("tipo_1", 0), setar("vivos", 0), setar("venceu", 1),
                 ev("EVENT_ACTOR_DEACTIVATE", actorId="$self$"),
                 setar("recorde", op("max", var("recorde"), num(SALAS_ATE_CHEFE + 1))),
                 salvar(), esperar(40), ir_cena("vitoria")])]

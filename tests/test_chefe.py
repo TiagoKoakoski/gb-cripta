@@ -79,3 +79,19 @@ def test_recomeco_zera_velocidade_das_botas(jogo):
     jogo.tick(90)
     assert 1 <= jogo.var("cena") <= 4
     assert jogo.velocidade_jogador() == 32
+
+
+def test_chefe_morto_trava_invencivel_e_vence(jogo):
+    boot(jogo, "chefe", vida=99, dano=4, cadencia=1)
+    jogo.set_var("hp_chefe", 4)
+    morreu = False
+    for _ in range(1500):
+        if jogo.var("vivos") == 0:
+            morreu = True
+            break
+        limpar_sala(jogo, limite=1)
+    assert morreu
+    jogo.tick(2)
+    assert jogo.var("invencivel") == 255
+    jogo.set_var("vida", 1)
+    assert esperar_cena(jogo, CENA_VITORIA)

@@ -2554,16 +2554,16 @@
         "__collapseElse": true,
         "__disableElse": true
       },
-      "id": "b99b26a0-1b25-5b6a-960f-c4defff752b4",
+      "id": "3435a53e-b5f9-5331-855e-6d45ce331bca",
       "children": {
         "true": [
           {
             "command": "EVENT_SET_VALUE",
             "args": {
-              "variable": "26",
+              "variable": "10",
               "value": {
                 "type": "number",
-                "value": 0
+                "value": 255
               }
             },
             "id": "76055d3c-23a7-5df2-887e-85a9c81d1a62"
@@ -2571,7 +2571,7 @@
           {
             "command": "EVENT_SET_VALUE",
             "args": {
-              "variable": "6",
+              "variable": "26",
               "value": {
                 "type": "number",
                 "value": 0
@@ -2582,20 +2582,31 @@
           {
             "command": "EVENT_SET_VALUE",
             "args": {
+              "variable": "6",
+              "value": {
+                "type": "number",
+                "value": 0
+              }
+            },
+            "id": "b1d14bb9-bca3-54c5-b5ba-d6d94c864caa"
+          },
+          {
+            "command": "EVENT_SET_VALUE",
+            "args": {
               "variable": "12",
               "value": {
                 "type": "number",
                 "value": 1
               }
             },
-            "id": "b1d14bb9-bca3-54c5-b5ba-d6d94c864caa"
+            "id": "f9e2bc7f-810d-5e42-8974-7ca8a3c17e2b"
           },
           {
             "command": "EVENT_ACTOR_DEACTIVATE",
             "args": {
               "actorId": "$self$"
             },
-            "id": "f9e2bc7f-810d-5e42-8974-7ca8a3c17e2b"
+            "id": "081e6f9f-90da-50bd-bac0-8b425e130dcf"
           },
           {
             "command": "EVENT_SET_VALUE",
@@ -2613,14 +2624,14 @@
                 }
               }
             },
-            "id": "081e6f9f-90da-50bd-bac0-8b425e130dcf"
+            "id": "23cf1148-db64-5ff2-9c7f-63a772bd47d2"
           },
           {
             "command": "EVENT_SAVE_DATA",
             "args": {
               "saveSlot": 0
             },
-            "id": "23cf1148-db64-5ff2-9c7f-63a772bd47d2",
+            "id": "c5059b77-2fd4-52ec-8865-6eaaf9aa3224",
             "children": {
               "true": [],
               "load": []
@@ -2639,7 +2650,7 @@
               },
               "units": "frames"
             },
-            "id": "c5059b77-2fd4-52ec-8865-6eaaf9aa3224"
+            "id": "96781354-07fa-5257-b941-cb50920f2d00"
           },
           {
             "command": "EVENT_SWITCH_SCENE",
@@ -2656,19 +2667,19 @@
               "direction": "up",
               "fadeSpeed": "1"
             },
-            "id": "96781354-07fa-5257-b941-cb50920f2d00"
+            "id": "8f47d2fb-683c-5633-9268-1867de7b0805"
           },
           {
             "command": "EVENT_END",
             "args": {},
-            "id": "8f47d2fb-683c-5633-9268-1867de7b0805"
+            "id": "1b3f5801-5337-52d4-97a2-8ff42ace8e63"
           }
         ],
         "false": [
           {
             "command": "EVENT_END",
             "args": {},
-            "id": "1b3f5801-5337-52d4-97a2-8ff42ace8e63"
+            "id": "b99b26a0-1b25-5b6a-960f-c4defff752b4"
           }
         ]
       }

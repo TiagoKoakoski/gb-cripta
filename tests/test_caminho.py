@@ -111,3 +111,17 @@ def test_ids_de_evento_unicos(rom_jogo):
     for f in (Path(__file__).resolve().parent.parent / "projeto/project/scenes").rglob("*.gbsres"):
         walk(json.loads(f.read_text()))
     assert len(ids) == len(set(ids))
+
+
+def test_morto_nao_passa_pela_porta(jogo):
+    from caminhos import andar_ate
+    boot(jogo, **VAZIA)
+    andar_ate(jogo, (2, 3))
+    jogo.set_var("vida", 0)
+    jogo.set_var("invencivel", 255)   # estado durante a espera da morte
+    cena0 = jogo.var("cena")
+    for _ in range(60):
+        jogo.pb.button_press("up"); jogo.tick(1)
+    jogo.pb.button_release("up")
+    jogo.tick(30)
+    assert jogo.var("cena") == cena0

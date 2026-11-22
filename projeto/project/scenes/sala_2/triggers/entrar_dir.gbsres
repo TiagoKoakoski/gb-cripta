@@ -15,14 +15,28 @@
       "command": "EVENT_IF",
       "args": {
         "condition": {
-          "type": "eq",
+          "type": "and",
           "valueA": {
-            "type": "variable",
-            "value": "6"
+            "type": "eq",
+            "valueA": {
+              "type": "variable",
+              "value": "6"
+            },
+            "valueB": {
+              "type": "number",
+              "value": 0
+            }
           },
           "valueB": {
-            "type": "number",
-            "value": 0
+            "type": "gt",
+            "valueA": {
+              "type": "variable",
+              "value": "0"
+            },
+            "valueB": {
+              "type": "number",
+              "value": 0
+            }
           }
         },
         "__collapseElse": true,
