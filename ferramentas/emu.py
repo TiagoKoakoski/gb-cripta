@@ -60,5 +60,5 @@ class Emu:
         Path(caminho).parent.mkdir(parents=True, exist_ok=True)
         self.pb.screen.image.save(str(caminho))
 
-    def fechar(self):
-        self.pb.stop(save=False)
+    def fechar(self, salvar=False):
+        self.pb.stop(save=salvar)

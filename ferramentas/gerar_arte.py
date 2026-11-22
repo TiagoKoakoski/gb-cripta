@@ -399,6 +399,8 @@ def main():
     for n, fs in dois.items():
         folha(list(fs)).save(ARTE / f"{n}.png")
     folha([digito16(d) for d in range(10)]).save(ARTE / "digitos.png")
+    for d in range(10):
+        folha([digito16(d)]).save(ARTE / f"digito_{d}.png")
     for e, (l, r) in HUD_ESTADOS.items():
         folha([par_coracoes(l, r)]).save(ARTE / f"hud_{e}.png")
 

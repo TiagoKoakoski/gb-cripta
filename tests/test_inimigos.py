@@ -8,7 +8,7 @@ def test_sorteio_por_profundidade(rom_jogo):
     for semente in range(1, 13):
         for prof, tipos, ns in ((1, vistos_raso, n_raso), (5, vistos_fundo, n_fundo)):
             e = Emu(*rom_jogo)
-            boot_sorteado(e, profundidade=prof, semente=semente)
+            boot_sorteado(e, prof_inicial=prof, semente=semente)
             t = [e.var(f"tipo_{k}") for k in (1, 2, 3, 4)]
             assert 1 <= e.var("cena") <= 4
             tipos.update(x for x in t if x)

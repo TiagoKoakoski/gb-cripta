@@ -92,3 +92,22 @@ def test_ids_e_simbolos_unicos(rom_jogo):
         ids.append(d["id"]); simbolos.append(d["symbol"])
     assert len(ids) == len(set(ids))
     assert len(simbolos) == len(set(simbolos))
+
+
+def test_ids_de_evento_unicos(rom_jogo):
+    import json
+    from pathlib import Path
+    ids = []
+
+    def walk(o):
+        if isinstance(o, dict):
+            if "command" in o:
+                ids.append(o["id"])
+            for v in o.values():
+                walk(v)
+        elif isinstance(o, list):
+            for v in o:
+                walk(v)
+    for f in (Path(__file__).resolve().parent.parent / "projeto/project/scenes").rglob("*.gbsres"):
+        walk(json.loads(f.read_text()))
+    assert len(ids) == len(set(ids))

@@ -36,7 +36,7 @@ PORTA_SPRITE = {1: "porta_combate", 2: "porta_tesouro", 3: "porta_fonte"}
 
 VARIAVEIS = (["vida", "vida_max", "dano", "cadencia", "rapido", "profundidade", "vivos", "porta_esq",
               "porta_dir", "recarga", "invencivel", "recorde", "venceu", "item_sala", "fonte_usada",
-              "ir_para", "tiros", "sorte", "cena", "fio_pisca", "semente", "qtd", "sala_sorteada"] +
+              "ir_para", "tiros", "sorte", "cena", "fio_pisca", "semente", "qtd", "sala_sorteada", "hp_chefe", "rajadas", "prof_inicial"] +
              [f"tipo_{k}" for k in SLOTS] + [f"hp_{k}" for k in SLOTS] +
              [f"{p}{e}_{k}" for k in SLOTS for p in ("e", "p") for e in ("x", "y")])
 VAR = {n: str(i) for i, n in enumerate(VARIAVEIS)}
@@ -57,6 +57,25 @@ def ev(comando, children=None, **args):
 
 
 ev.n = 0
+
+
+def renovar_ids(eventos):
+    """Cópia profunda com IDs de evento novos (o mesmo script usado em dois lugares)."""
+    import copy
+    novo = copy.deepcopy(eventos)
+
+    def walk(o):
+        if isinstance(o, dict):
+            if "command" in o:
+                ev.n += 1
+                o["id"] = ID(f"ev-{ev.n}")
+            for v in o.values():
+                walk(v)
+        elif isinstance(o, list):
+            for v in o:
+                walk(v)
+    walk(novo)
+    return novo
 
 
 def num(v):
@@ -202,7 +221,7 @@ def gatilho(nome, x, y, w, h, idx, script):
 def iniciar_partida():
     return [setar("vida", 3), setar("vida_max", 3), setar("dano", 1), setar("cadencia", 5), setar("rapido", 0),
             setar("profundidade", 1), setar("venceu", 0), setar("recarga", 0), setar("invencivel", 0),
-            setar("tiros", 0), setar("ir_para", 0), setar("semente", 0)] + [setar(f"tipo_{k}", 0) for k in SLOTS]
+            setar("tiros", 0), setar("ir_para", 0), setar("rajadas", 0)] + [setar(f"tipo_{k}", 0) for k in SLOTS]
 
 
 def tiro_do_jogador():
@@ -442,19 +461,74 @@ def init_fonte():
 
 
 def init_chefe():
-    return init_sala_comum("sala_chefe") + [setar("vivos", 1)]
+    return init_sala_comum("sala_chefe") + [setar("vivos", 1), setar("tipo_1", 9), setar("hp_chefe", 12)]
+
+
+def ia_chefe():
+    """Persegue (mergulha e recua como o morcego) por ~2 s, para e solta 4 tiros em cruz."""
+    def persegue():  # ramo 'perseguir' do morcego (sem o END), com IDs de evento novos a cada uso
+        return ia_inimigo(1)[1]["children"]["true"][:-1]
+    rajada = [ev("EVENT_LAUNCH_PROJECTILE", spriteSheetId=ID("sprite-tiro_inimigo"), spriteStateId="",
+                 actorId="$self$", x=0, y=0, directionType="direction", direction=d, otherActorId="$self$",
+                 angle=0, speed=2, animSpeed=15, lifeTime=2, initialOffset=8, loopAnim=True, destroyOnHit=True,
+                 collisionGroup="3", collisionMask=["player"]) for d in ("up", "down", "left", "right")]
+    onde = ev("EVENT_ACTOR_GET_POSITION", actorId="$self$", vectorX=VAR["ex_1"], vectorY=VAR["ey_1"], units="pixels")
+    return [onde] + persegue() + persegue() + persegue() + persegue() + renovar_ids([onde]) + [esperar(20)] + rajada + [somar("rajadas"), som("crash", pitch=6),
+                                                                    esperar(40)]
+
+
+def acerto_no_chefe():
+    return [ev("EVENT_SET_VALUE", variable=VAR["hp_chefe"], value=op("sub", var("hp_chefe"), var("dano"))),
+            som("crash", pitch=5, duration=0.05),
+            se(op("lte", var("hp_chefe"), num(0)), [
+                setar("tipo_1", 0), setar("vivos", 0), setar("venceu", 1),
+                ev("EVENT_ACTOR_DEACTIVATE", actorId="$self$"),
+                setar("recorde", op("max", var("recorde"), num(SALAS_ATE_CHEFE + 1))),
+                salvar(), esperar(40), ir_cena("vitoria")])]
+
+
+def salvar():
+    return ev("EVENT_SAVE_DATA", children={"true": [], "load": []}, saveSlot=0)
+
+
+def mostrar_digito(ator_nome, var_nome):
+    return [se(igual(var_nome, d), [trocar_sprite(a(ator_nome), f"digito_{d}")]) for d in range(10)]
 
 
 def init_fim():
-    return [setar("cena", CENA_NUM["fim"]), esperar(30),
-            ev("EVENT_AWAIT_INPUT", input=["a", "start"]), ir_cena("boot")]
+    return [setar("cena", CENA_NUM["fim"]), ev("EVENT_ACTOR_HIDE", actorId="player"),
+            setar("recorde", op("max", var("recorde"), var("profundidade"))), salvar()] + \
+        mostrar_digito("dig_prof", "profundidade") + mostrar_digito("dig_rec", "recorde") + \
+        [esperar(30), ev("EVENT_AWAIT_INPUT", input=["a", "start"]), ir_cena("titulo")]
+
+
+def init_vitoria():
+    return [setar("cena", CENA_NUM["vitoria"]), ev("EVENT_ACTOR_HIDE", actorId="player")] + \
+        mostrar_digito("dig_rec", "recorde") + \
+        [esperar(30), ev("EVENT_AWAIT_INPUT", input=["a", "start"]), ir_cena("titulo")]
+
+
+def comecar_partida():
+    return embaralhar() + iniciar_partida() + [
+        se(op("gt", var("prof_inicial"), num(0)), [ev("EVENT_SET_VALUE", variable=VAR["profundidade"],
+                                                      value=var("prof_inicial"))]),
+        setar("prof_inicial", 0)] + sortear_inimigos() + ir_combate_sorteado()
+
+
+def init_titulo():
+    return [setar("cena", CENA_NUM["titulo"]), ev("EVENT_ACTOR_HIDE", actorId="player"),
+            ev("EVENT_IF_SAVED_DATA", children={"true": [ev("EVENT_PEEK_DATA", variableDest=VAR["recorde"],
+                                                            variableSource=VAR["recorde"], saveSlot=0)],
+                                                "false": []}, saveSlot=0),
+            esperar(20), ev("EVENT_AWAIT_INPUT", input=["a", "start"]), som("tone", frequency=800, duration=0.2)] + \
+        comecar_partida()
 
 
 def init_boot():
-    cadeia = embaralhar() + sortear_inimigos() + ir_combate_sorteado()
+    cadeia = [ir_cena("titulo")]
     for n in sorted(IR_PARA, reverse=True):
         cadeia = [se(igual("ir_para", n), [ir_cena(IR_PARA[n])], cadeia)]
-    return [setar("cena", 0)] + iniciar_partida() + [esperar(20)] + cadeia
+    return [setar("cena", 0), ev("EVENT_ACTOR_HIDE", actorId="player")] + iniciar_partida() + [esperar(20)] + cadeia
 
 
 # ------------------------------------------------------------------ cenas
@@ -465,7 +539,7 @@ def cena(nome, fundo, script, atores=(), gats=(), colisao=None, tipo="TOPDOWN", 
             "symbol": f"scene_{nome}", "x": 0, "y": 0, "width": A.LARG, "height": A.ALT,
             "backgroundId": ID(f"bg-{fundo}"), "tilesetId": "", "colorModeOverride": "none",
             "paletteIds": [], "spritePaletteIds": [], "autoFadeSpeed": 1, "script": script,
-            "playerHit1Script": dano or [], "playerHit2Script": [], "playerHit3Script": dano or [],
+            "playerHit1Script": dano or [], "playerHit2Script": [], "playerHit3Script": renovar_ids(dano or []),
             "collisions": colisoes_str(col)}, list(atores), list(gats)
 
 
@@ -509,11 +583,25 @@ def sala_especial(nome, sprite_objeto, init_fn, tocar_fn):
 
 
 def todas_cenas():
-    return [cena("boot", "titulo", init_boot()), cena("fim", "fim", init_fim())] + \
+    CENA_ATUAL[0] = "fim"
+    fim = cena("fim", "fim", init_fim(), [ator("dig_prof", "digito_0", 9, 8, 0), ator("dig_rec", "digito_0", 9, 12, 1)])
+    CENA_ATUAL[0] = "vitoria"
+    vit = cena("vitoria", "vitoria", init_vitoria(), [ator("dig_rec", "digito_0", 9, 12, 0)])
+    CENA_ATUAL[0] = "boot"
+    return [cena("boot", "titulo", init_boot()), cena("titulo", "titulo", init_titulo()), fim, vit] + \
         [sala_combate(n) for n in COMBATE] + [
             sala_especial("sala_tesouro", "item_forte", init_tesouro, pegar_item),
             sala_especial("sala_fonte", "fonte", init_fonte, usar_fonte),
-            sala_especial("sala_chefe", "rei", init_chefe, lambda: [])]
+            sala_chefe()]
+
+
+def sala_chefe():
+    CENA_ATUAL[0] = "sala_chefe"
+    col = json.loads((A.ARTE / "colisao_sala_chefe.json").read_text())
+    portas, i = atores_portas(0)
+    hud, i = atores_hud(i)
+    rei = ator("rei", "rei", 9, 4, i, grupo="1", update=ia_chefe(), hit2=acerto_no_chefe(), animar=True)
+    return cena("sala_chefe", "sala_chefe", init_chefe(), portas + hud + [rei], [], col, dano=jogador_levou_dano())
 
 
 SPRITES = [("jogador", 8, "multi_movement"), ("tiro", 1, "fixed"), ("tiro_inimigo", 1, "fixed"),
@@ -521,7 +609,7 @@ SPRITES = [("jogador", 8, "multi_movement"), ("tiro", 1, "fixed"), ("tiro_inimig
            ("coracao", 2, "fixed"), ("digitos", 10, "fixed"), ("porta_combate", 1, "fixed"),
            ("porta_tesouro", 1, "fixed"), ("porta_fonte", 1, "fixed"), ("porta_fechada", 1, "fixed"),
            ("hud_0", 1, "fixed"), ("hud_1", 1, "fixed"), ("hud_2", 1, "fixed"), ("hud_3", 1, "fixed"),
-           ("hud_4", 1, "fixed"), ("bau", 1, "fixed"), ("fonte", 1, "fixed"), ("item_forte", 1, "fixed"), ("item_gatilho", 1, "fixed"),
+           ("hud_4", 1, "fixed"), ("bau", 1, "fixed")] + [(f"digito_{d}", 1, "fixed") for d in range(10)] + [ ("fonte", 1, "fixed"), ("item_forte", 1, "fixed"), ("item_gatilho", 1, "fixed"),
            ("item_coracao", 1, "fixed"), ("item_botas", 1, "fixed")]
 FUNDOS = list(A.OBSTACULOS) + ["titulo", "fim", "vitoria"]
 
